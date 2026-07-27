@@ -7,13 +7,7 @@ import psycopg2
 import pandas as pd
 import time
 
-DB_CONFIG = {
-    "host": "localhost",
-    "database": "crypto_db",
-    "user": "postgres",
-    "password": os.getenv("DB_PASSWORD"),
-    "port": "5432"
-}
+DB_URL = os.getenv("DB_URL")
 
 st.set_page_config(page_title="Crypto Live Dashboard", layout="wide", page_icon="📊")
 
@@ -36,7 +30,7 @@ placeholder = st.empty()
 REFRESH_SECONDS = 15
 
 while True:
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = psycopg2.connect(DB_URL)
     df = pd.read_sql("SELECT * FROM prices ORDER BY timestamp DESC LIMIT 1000", conn)
     conn.close()
 
@@ -84,7 +78,7 @@ while True:
 
         # ---- ANALYTICS TABLE ----
         st.subheader("📊 Analytics Summary")
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(DB_URL)
         analytics_query = """
             SELECT 
                 coin,
@@ -104,7 +98,7 @@ while True:
 
         # ---- VOLATILITY SCORE ----
         st.subheader("⚡ Volatility Score (Risk Level)")
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = psycopg2.connect(DB_URL)
         volatility_query = """
             SELECT 
                 coin,
@@ -117,8 +111,10 @@ while True:
         volatility_df = pd.read_sql(volatility_query, conn)
         conn.close()
 
+        volatility_df["volatility"] = volatility_df["volatility"].fillna(0)
+        median_volatility = volatility_df["volatility"].median()
         volatility_df["risk_level"] = volatility_df["volatility"].apply(
-            lambda x: "🔴 High" if x > volatility_df["volatility"].median() else "🟢 Low"
+            lambda x: "🔴 High" if x > median_volatility else "🟢 Low"
         )
         st.dataframe(volatility_df, use_container_width=True)
 
@@ -129,11 +125,12 @@ while True:
         st.caption("Values close to 1 mean coins move together. Close to -1 means they move opposite.")
         correlation_df = pivot_df.corr()
         st.dataframe(correlation_df.style.background_gradient(cmap="RdYlGn", vmin=-1, vmax=1), use_container_width=True)
+
         st.divider()
 
         # ---- PREDICTIVE TREND (Moving Average) ----
         st.subheader("🔮 Short-Term Trend Prediction")
-        st.caption("Based on 5-period moving average — indicates likely short-term direction, not financial advice.")
+        st.caption("Based on moving averages — indicates likely short-term direction, not financial advice.")
 
         prediction_data = []
         for coin in pivot_df.columns:
@@ -141,14 +138,14 @@ while True:
             if len(coin_prices) >= 5:
                 ma_short = coin_prices.tail(3).mean()
                 ma_long = coin_prices.tail(10).mean() if len(coin_prices) >= 10 else coin_prices.mean()
-                
+
                 if ma_short > ma_long:
                     trend = "📈 Likely Upward"
                 elif ma_short < ma_long:
                     trend = "📉 Likely Downward"
                 else:
                     trend = "➡️ Stable"
-                
+
                 prediction_data.append({
                     "coin": coin,
                     "recent_avg": round(ma_short, 2),
