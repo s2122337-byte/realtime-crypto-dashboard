@@ -1,6 +1,6 @@
 \# 📊 Real-Time Crypto Analytics Dashboard
 
-
+🔗 **Live Demo:** [Click here to view the live dashboard](https://realtime-crypto-dashboard-dvbopk2mq5gm5rjysxyfav.streamlit.app/)
 
 A real-time cryptocurrency tracking and analytics platform built with Python, PostgreSQL, and Streamlit. The system continuously fetches live price data from the CoinGecko API, stores it in a PostgreSQL database, and visualizes it through an interactive dashboard with advanced analytics.
 
